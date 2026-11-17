@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- 相片框 -->
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+        android:pathData="M30,32 h48 a4,4 0 0 1 4,4 v28 a4,4 0 0 1 -4,4 h-48 a4,4 0 0 1 -4,-4 v-28 a4,4 0 0 1 4,-4 z M33,37 v26 h42 v-26 z"/>
+    <!-- 山與太陽 -->
+    <path android:fillColor="#FFFFFF" android:pathData="M36,60 l9,-12 l7,8 l5,-5 l11,9 z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M64,43 m-3.5,0 a3.5,3.5 0 1 0 7,0 a3.5,3.5 0 1 0 -7,0"/>
+    <!-- 向下箭頭 -->
+    <path android:fillColor="#FFFFFF" android:pathData="M51,72 h6 v6 h5 l-8,8 l-8,-8 h5 z"/>
+</vector>

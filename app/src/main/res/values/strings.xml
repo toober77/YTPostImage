@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YTPostImage</string>
+    <string name="input_hint">貼上 YouTube 社群貼文連結（或從 YouTube 分享過來）</string>
+    <string name="paste">貼上</string>
+    <string name="fetch">抓圖</string>
+    <string name="hint_idle">在 YouTube 貼文按「分享」→ 選 YTPostImage，或把連結貼在上面再按「抓圖」。</string>
+    <string name="hint_pasted">已貼上，按「抓圖」開始。</string>
+    <string name="fetching">正在讀取貼文…</string>
+    <string name="found_n">找到 %1$d 張圖片。點縮圖可取消／選取，再按下方按鈕儲存。</string>
+    <string name="select_all">全選</string>
+    <string name="select_none">全不選</string>
+    <string name="save_n">儲存 %1$d 張</string>
+    <string name="saving">儲存中 %1$d / %2$d…</string>
+    <string name="saved_n">已儲存 %1$d 張到「圖片/YTPostImage」</string>
+    <string name="saved_partial">已儲存 %1$d 張，%2$d 張失敗</string>
+    <string name="err_invalid_link">這不是有效的 YouTube 社群貼文連結。請貼上像 https://www.youtube.com/post/Ugk… 的連結。</string>
+    <string name="err_clipboard_empty">剪貼簿是空的，請先複製貼文連結。</string>
+    <string name="err_network">網路連線失敗，請檢查網路後再試一次。</string>
+    <string name="err_not_found">找不到這則貼文（可能已刪除、非公開，或連結不正確）。</string>
+    <string name="err_http">YouTube 回應錯誤（HTTP %1$d），請稍後再試。</string>
+    <string name="err_consent">YouTube 要求先同意 Cookie／隱私條款（歐盟地區常見）。請先用瀏覽器開啟 YouTube 並同意後再試。</string>
+    <string name="err_no_images">這則貼文沒有圖片，或 YouTube 版面已變動導致無法解析（可能需要更新 App）。</string>
+    <string name="err_parse">解析貼文失敗，YouTube 版面可能已變動（可能需要更新 App）。</string>
+    <string name="err_permission">沒有儲存權限，無法存圖。請在系統設定中允許「儲存空間」權限。</string>
+</resources>
