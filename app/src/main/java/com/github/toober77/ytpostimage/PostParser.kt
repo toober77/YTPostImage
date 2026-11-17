@@ -3,7 +3,7 @@ package com.github.toober77.ytpostimage
 /** 貼文中的一張圖片。[id] 是圖片 ID（yt3 網址 `=` 之前那一段），[host] 是圖床主機名稱。 */
 data class PostImage(val id: String, val host: String) {
     /** 縮圖網址（用於預覽格狀清單）。 */
-    val thumbUrl: String get() = "https://$host/$id=s512"
+    val thumbUrl: String get() = "https://$host/$id=s1080"
     /** 原尺寸（未裁切）網址，優先使用。 */
     val originalUrl: String get() = PostParser.withSuffix(this, "d")
     /** 備用的原尺寸網址（`=d` 失敗時使用）。 */

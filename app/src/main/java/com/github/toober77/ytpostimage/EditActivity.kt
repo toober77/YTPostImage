@@ -45,6 +45,7 @@ class EditActivity : Activity() {
     private val chips = ArrayList<Button>()
     private var mode = EditState.MODE_CUSTOM
     private var loaded = false
+    private var preview: android.graphics.Bitmap? = null
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density + 0.5f).toInt()
 
@@ -76,6 +77,7 @@ class EditActivity : Activity() {
                 ?: throw IllegalStateException("decode")
             ui.post {
                 if (isDestroyed) return@post
+                preview = bmp
                 cropView.setAspect(currentAspect())
                 cropView.setImage(bmp, w, h, prev?.takeIf { it.srcW == w && it.srcH == h })
                 if (prev == null) cropView.setAspect(currentAspect())
@@ -223,7 +225,12 @@ class EditActivity : Activity() {
     private fun finishWithEdit() {
         val st = cropView.state ?: return
         val full = st.copy(mode = mode, customText = customField.text.toString())
-        EditStore.setEdit(img.id, if (EditMath.isIdentity(full)) null else full)
+        if (EditMath.isIdentity(full)) {
+            EditStore.setEdit(img.id, null)
+        } else {
+            val thumb = try { preview?.let { ImageEditor.renderPreview(it, full, 900) } } catch (e: Throwable) { null }
+            EditStore.setEdit(img.id, full, thumb)
+        }
         setResult(RESULT_OK)
         finish()
     }

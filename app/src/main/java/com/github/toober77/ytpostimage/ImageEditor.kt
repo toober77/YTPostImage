@@ -33,28 +33,30 @@ object ImageEditor {
         }
     }
 
+    /** 位元圖像素 →（旋轉、裁切後）輸出像素的矩陣。[k]＝bmp 寬 / 原圖寬；[s]＝輸出像素 / 原圖像素。 */
+    private fun matrixFor(st: EditState, k: Double, s: Double): Matrix {
+        val (bw, bh) = EditMath.frameSize(st.srcW.toDouble(), st.srcH.toDouble(), st.angle)
+        val m = Matrix()
+        m.postScale((1.0 / k).toFloat(), (1.0 / k).toFloat()) // 先回到原圖像素
+        m.postTranslate(-st.srcW / 2f, -st.srcH / 2f)
+        m.postRotate(st.angle.toFloat())
+        m.postTranslate((bw / 2 - st.crop.left).toFloat(), (bh / 2 - st.crop.top).toFloat())
+        m.postScale(s.toFloat(), s.toFloat())
+        return m
+    }
+
     private fun render(src: DownloadedImage, st: EditState, sample: Int): DownloadedImage {
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
         val bmp = BitmapFactory.decodeByteArray(src.bytes, 0, src.bytes.size, opts) ?: throw IOException("decode failed")
         var out: Bitmap? = null
         try {
             val k = bmp.width.toDouble() / st.srcW // ≈ 1/sample
-            val (bw, bh) = EditMath.frameSize(st.srcW.toDouble(), st.srcH.toDouble(), st.angle)
-            val m = Matrix()
-            m.postTranslate(-st.srcW / 2f, -st.srcH / 2f)
-            m.postRotate(st.angle.toFloat())
-            m.postTranslate((bw / 2 - st.crop.left).toFloat(), (bh / 2 - st.crop.top).toFloat())
-            m.postScale(k.toFloat(), k.toFloat())
             val (ow, oh) = EditMath.outputSize(CropRect(0.0, 0.0, st.crop.width * k, st.crop.height * k))
             val png = EditMath.outputIsPng(src.extension)
             out = Bitmap.createBitmap(ow, oh, Bitmap.Config.ARGB_8888)
             val c = Canvas(out)
             if (!png) c.drawColor(Color.BLACK)
-            // 原圖尺寸 = bmp 尺寸 / k；matrix 以原圖像素為單位，先縮放 bmp 回原圖尺寸
-            val full = Matrix()
-            full.postScale((1.0 / k).toFloat(), (1.0 / k).toFloat())
-            full.postConcat(m)
-            c.drawBitmap(bmp, full, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+            c.drawBitmap(bmp, matrixFor(st, k, k), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
             val bos = ByteArrayOutputStream(max(1, ow * oh / 4))
             if (png) out.compress(Bitmap.CompressFormat.PNG, 100, bos) else out.compress(Bitmap.CompressFormat.JPEG, 95, bos)
             return DownloadedImage(bos.toByteArray(), if (png) "image/png" else "image/jpeg", src.url)
@@ -62,6 +64,18 @@ object ImageEditor {
             bmp.recycle()
             out?.recycle()
         }
+    }
+
+    /** 用已降採樣的預覽圖 [bmp]（對應原圖 [EditState.srcW]）產生套用編輯後的縮圖，長邊不超過 [maxSide]。 */
+    fun renderPreview(bmp: Bitmap, st: EditState, maxSide: Int): Bitmap {
+        val k = bmp.width.toDouble() / st.srcW
+        val cw = st.crop.width * k
+        val ch = st.crop.height * k
+        val sc = kotlin.math.min(1.0, maxSide / kotlin.math.max(cw, ch))
+        val (ow, oh) = EditMath.outputSize(CropRect(0.0, 0.0, cw * sc, ch * sc))
+        val out = Bitmap.createBitmap(ow, oh, Bitmap.Config.ARGB_8888)
+        Canvas(out).drawBitmap(bmp, matrixFor(st, k, k * sc), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+        return out
     }
 
     private fun max(a: Int, b: Int) = if (a > b) a else b
