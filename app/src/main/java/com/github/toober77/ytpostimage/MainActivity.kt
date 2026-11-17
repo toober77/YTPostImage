@@ -20,7 +20,8 @@ import android.util.LruCache
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsets
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -41,8 +42,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var input: EditText
-    private lateinit var pasteBtn: Button
-    private lateinit var fetchBtn: Button
+    private lateinit var goBtn: Button
     private lateinit var status: TextView
     private lateinit var grid: GridView
     private lateinit var selectBtn: Button
@@ -54,6 +54,16 @@ class MainActivity : Activity() {
     private var selected = BooleanArray(0)
     private var busy = false
     private var pendingSave = false
+    private var fromShare = false
+
+    private companion object {
+        const val COL_BG = 0xFF121212.toInt()
+        const val COL_TEXT = 0xFFE6E6E6.toInt()
+        const val COL_SUB = 0xFFAAAAAA.toInt()
+        const val COL_ERR = 0xFFFF8A80.toInt()
+        const val COL_ACCENT = 0xFFEF5350.toInt()
+        const val REQ_EDIT = 7
+    }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density + 0.5f).toInt()
 
@@ -79,58 +89,65 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setBackgroundColor(COL_BG)
+            setPadding(dp(6), dp(4), dp(6), dp(4))
             setOnApplyWindowInsetsListener { v, insets ->
                 @Suppress("DEPRECATION")
                 v.setPadding(
-                    dp(12) + insets.systemWindowInsetLeft, dp(8) + insets.systemWindowInsetTop,
-                    dp(12) + insets.systemWindowInsetRight, dp(8) + insets.systemWindowInsetBottom
+                    dp(6) + insets.systemWindowInsetLeft, dp(4) + insets.systemWindowInsetTop,
+                    dp(6) + insets.systemWindowInsetRight, dp(4) + insets.systemWindowInsetBottom
                 )
                 insets
             }
         }
-        root.addView(TextView(this).apply {
-            text = getString(R.string.app_name)
-            textSize = 22f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(0xFF222222.toInt())
-            setPadding(0, dp(4), 0, dp(8))
-        })
         input = EditText(this).apply {
             hint = getString(R.string.input_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_VARIATION_URI
-            minLines = 2
-            maxLines = 4
-            gravity = Gravity.TOP or Gravity.START
-            textSize = 15f
+            setHintTextColor(COL_SUB)
+            setTextColor(COL_TEXT)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine()
+            imeOptions = EditorInfo.IME_ACTION_GO
+            textSize = 14f
+            setOnEditorActionListener { _, actionId, event ->
+                if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE ||
+                    (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+                ) {
+                    startFetch(text.toString())
+                    true
+                } else false
+            }
         }
         root.addView(input, LinearLayout.LayoutParams(-1, -2))
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        pasteBtn = Button(this).apply { text = getString(R.string.paste); setOnClickListener { pasteFromClipboard() } }
-        fetchBtn = Button(this).apply { text = getString(R.string.fetch); setOnClickListener { startFetch(input.text.toString()) } }
-        row.addView(pasteBtn, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(fetchBtn, LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(row, LinearLayout.LayoutParams(-1, -2))
-        status = TextView(this).apply {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        goBtn = Button(this).apply {
+            text = getString(R.string.paste_and_fetch)
             textSize = 14f
-            setTextColor(0xFF555555.toInt())
-            setPadding(dp(2), dp(6), dp(2), dp(6))
+            minHeight = 0; minimumHeight = dp(40)
+            setOnClickListener { pasteAndFetch() }
+        }
+        row.addView(goBtn, LinearLayout.LayoutParams(-2, -2))
+        status = TextView(this).apply {
+            textSize = 12f
+            maxLines = 4
+            setTextColor(COL_SUB)
+            setPadding(dp(8), 0, 0, 0)
             text = getString(R.string.hint_idle)
         }
-        root.addView(status, LinearLayout.LayoutParams(-1, -2))
+        row.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(row, LinearLayout.LayoutParams(-1, -2))
         grid = GridView(this).apply {
             numColumns = 3
-            horizontalSpacing = dp(6)
-            verticalSpacing = dp(6)
+            horizontalSpacing = dp(4)
+            verticalSpacing = dp(4)
             stretchMode = GridView.STRETCH_COLUMN_WIDTH
             adapter = ThumbAdapter()
             setOnItemClickListener { _, _, pos, _ -> toggle(pos) }
+            setOnItemLongClickListener { _, _, pos, _ -> openEditor(pos); true }
         }
-        root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(4) })
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE }
-        selectBtn = Button(this).apply { setOnClickListener { toggleAll() } }
-        saveBtn = Button(this).apply { setOnClickListener { startSave() } }
+        selectBtn = Button(this).apply { minHeight = 0; minimumHeight = dp(40); setOnClickListener { toggleAll() } }
+        saveBtn = Button(this).apply { minHeight = 0; minimumHeight = dp(40); setOnClickListener { startSave() } }
         bar.addView(selectBtn, LinearLayout.LayoutParams(0, -2, 1f))
         bar.addView(saveBtn, LinearLayout.LayoutParams(0, -2, 1.4f))
         root.addView(bar, LinearLayout.LayoutParams(-1, -2))
@@ -140,13 +157,12 @@ class MainActivity : Activity() {
 
     private fun setStatus(msg: String, error: Boolean = false) {
         status.text = msg
-        status.setTextColor(if (error) 0xFFC62828.toInt() else 0xFF555555.toInt())
+        status.setTextColor(if (error) COL_ERR else COL_SUB)
     }
 
     private fun setBusy(b: Boolean) {
         busy = b
-        pasteBtn.isEnabled = !b
-        fetchBtn.isEnabled = !b
+        goBtn.isEnabled = !b
         saveBtn.isEnabled = !b
         selectBtn.isEnabled = !b
     }
@@ -172,12 +188,22 @@ class MainActivity : Activity() {
         refreshBar()
     }
 
+    /** 測試用：不經網路直接顯示一組圖片。 */
+    internal fun showImagesForTest(imgs: List<PostImage>, id: String) {
+        postId = id
+        images = imgs
+        selected = BooleanArray(imgs.size) { true }
+        setStatus(getString(R.string.found_n, imgs.size))
+        refreshBar()
+    }
+
     // ---------------- 輸入來源 ----------------
 
     private fun handleIntent(i: Intent?) {
         if (i?.action == Intent.ACTION_SEND && i.type?.startsWith("text/") == true) {
             val text = i.getStringExtra(Intent.EXTRA_TEXT) ?: i.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
             if (text != null) {
+                fromShare = true
                 val url = PostParser.extractUrl(text) ?: text.trim()
                 input.setText(url)
                 startFetch(text)
@@ -185,16 +211,25 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun pasteFromClipboard() {
+    /** 讀剪貼簿 → 填入輸入框 → 立刻抓圖；剪貼簿沒有貼文連結時改用輸入框現有內容。 */
+    private fun pasteAndFetch() {
+        if (busy) return
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val text = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
-        if (text.isNullOrBlank()) {
-            setStatus(getString(R.string.err_clipboard_empty), true)
+        val clip = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (!clip.isNullOrBlank() && PostParser.postIdFromInput(clip) != null) {
+            input.setText(PostParser.extractUrl(clip) ?: clip.trim())
+            input.setSelection(input.text.length)
+            startFetch(clip)
             return
         }
-        input.setText(PostParser.extractUrl(text) ?: text.trim())
-        input.setSelection(input.text.length)
-        setStatus(getString(R.string.hint_pasted))
+        val typed = input.text.toString()
+        if (typed.isNotBlank()) {
+            startFetch(typed)
+        } else if (clip.isNullOrBlank()) {
+            setStatus(getString(R.string.err_clipboard_empty), true)
+        } else {
+            setStatus(getString(R.string.err_invalid_link), true)
+        }
     }
 
     // ---------------- 抓圖 ----------------
@@ -208,6 +243,7 @@ class MainActivity : Activity() {
         }
         input.setText(PostParser.canonicalUrl(id))
         postId = id
+        EditStore.clear()
         images = emptyList()
         selected = BooleanArray(0)
         refreshBar()
@@ -275,15 +311,23 @@ class MainActivity : Activity() {
         io.execute {
             var ok = 0
             var fail = 0
+            var lowRes = 0
             var firstError: String? = null
             for ((n, pair) in picks.withIndex()) {
                 val (index, img) = pair
                 ui.post { setStatus(getString(R.string.saving, n + 1, picks.size)) }
                 try {
-                    val data = YouTubeClient.downloadImage(img)
+                    val edit = EditStore.getEdit(img.id)
+                    val data = if (edit == null) {
+                        YouTubeClient.downloadImage(img)
+                    } else {
+                        val r = ImageEditor.apply(EditStore.original(img), edit)
+                        if (r.downscale > 1) lowRes++
+                        r.image
+                    }
                     ImageSaver.save(this, ImageSaver.fileName(id, index, data.extension), data)
                     ok++
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     fail++
                     if (firstError == null) firstError = e.javaClass.simpleName
                 }
@@ -293,9 +337,15 @@ class MainActivity : Activity() {
                 setBusy(false)
                 refreshBar()
                 if (fail == 0) {
-                    val msg = getString(R.string.saved_n, ok)
+                    var msg = getString(R.string.saved_n, ok)
+                    if (lowRes > 0) msg += getString(R.string.saved_lowres, lowRes)
                     setStatus(msg)
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                    // 全部成功：稍等 toast 出現後自動關閉（分享進來的只關自己，避免把 YouTube 的 task 一起移除）
+                    ui.postDelayed({
+                        if (isDestroyed || isFinishing) return@postDelayed
+                        if (fromShare) finish() else finishAndRemoveTask()
+                    }, 1000)
                 } else {
                     val msg = getString(R.string.saved_partial, ok, fail)
                     setStatus(msg + "（" + (firstError ?: "") + "）", true)
@@ -303,6 +353,24 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    // ---------------- 編輯 ----------------
+
+    private fun openEditor(pos: Int) {
+        if (busy || pos !in images.indices) return
+        val img = images[pos]
+        @Suppress("DEPRECATION")
+        startActivityForResult(
+            Intent(this, EditActivity::class.java)
+                .putExtra(EditActivity.EXTRA_ID, img.id).putExtra(EditActivity.EXTRA_HOST, img.host),
+            REQ_EDIT
+        )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (images.isNotEmpty()) (grid.adapter as BaseAdapter).notifyDataSetChanged()
     }
 
     // ---------------- 縮圖格 ----------------
@@ -317,6 +385,7 @@ class MainActivity : Activity() {
             val img = images[position]
             val on = selected.getOrElse(position) { false }
             cell.setChecked(on)
+            cell.badge.visibility = if (EditStore.hasEdit(img.id)) View.VISIBLE else View.GONE
             val url = img.thumbUrl
             if (cell.url != url) {
                 cell.url = url
@@ -347,8 +416,8 @@ class MainActivity : Activity() {
 
     private inner class Cell(ctx: Context) : FrameLayout(ctx) {
         var url: String? = null
-        val image = ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(0xFFEEEEEE.toInt()) }
-        val dim = View(ctx).apply { setBackgroundColor(0x88FFFFFF.toInt()) }
+        val image = ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(0xFF2A2A2A.toInt()) }
+        val dim = View(ctx).apply { setBackgroundColor(0x99121212.toInt()) }
         val check = TextView(ctx).apply {
             gravity = Gravity.CENTER
             textSize = 14f
@@ -356,10 +425,20 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0x99000000.toInt()); setStroke(dp(2), Color.WHITE) }
         }
 
+        val badge = TextView(ctx).apply {
+            text = getString(R.string.badge_edited)
+            textSize = 10f
+            setTextColor(Color.WHITE)
+            setPadding(dp(5), dp(1), dp(5), dp(1))
+            background = GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0xCCEF5350.toInt()) }
+            visibility = View.GONE
+        }
+
         init {
             addView(image, LayoutParams(-1, -1))
             addView(dim, LayoutParams(-1, -1))
-            addView(check, LayoutParams(dp(24), dp(24), Gravity.TOP or Gravity.END).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+            addView(check, LayoutParams(dp(22), dp(22), Gravity.TOP or Gravity.END).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) })
+            addView(badge, LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) })
         }
 
         fun setChecked(on: Boolean) {

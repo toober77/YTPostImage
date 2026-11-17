@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.App" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:colorAccent">#D32F2F</item>
-        <item name="android:statusBarColor">@android:color/white</item>
-        <item name="android:navigationBarColor">@android:color/white</item>
-        <item name="android:windowLightStatusBar">true</item>
+    <!-- 永遠使用深色，不跟隨系統設定 -->
+    <style name="Theme.App" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#EF5350</item>
+        <item name="android:colorPrimary">#1E1E1E</item>
+        <item name="android:colorBackground">#121212</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#121212</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#E6E6E6</item>
+        <item name="android:textColorSecondary">#AAAAAA</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

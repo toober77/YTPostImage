@@ -14,8 +14,8 @@ android {
         applicationId = "com.github.toober77.ytpostimage"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
     signingConfigs {
         create("release") {
@@ -42,8 +42,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    testOptions { unitTests.all { it.testLogging { events("passed", "failed", "skipped"); showStandardStreams = true } } }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all { it.testLogging { events("passed", "failed", "skipped"); showStandardStreams = true } }
+    }
 }
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

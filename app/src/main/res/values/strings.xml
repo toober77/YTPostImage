@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">YTPostImage</string>
-    <string name="input_hint">貼上 YouTube 社群貼文連結（或從 YouTube 分享過來）</string>
-    <string name="paste">貼上</string>
-    <string name="fetch">抓圖</string>
-    <string name="hint_idle">在 YouTube 貼文按「分享」→ 選 YTPostImage，或把連結貼在上面再按「抓圖」。</string>
-    <string name="hint_pasted">已貼上，按「抓圖」開始。</string>
+    <string name="input_hint">貼上 YouTube 社群貼文連結</string>
+    <string name="paste_and_fetch">貼上並抓圖</string>
+    <string name="hint_idle">複製連結後按左側按鈕，或從 YouTube 分享過來。</string>
     <string name="fetching">正在讀取貼文…</string>
-    <string name="found_n">找到 %1$d 張圖片。點縮圖可取消／選取，再按下方按鈕儲存。</string>
+    <string name="found_n">找到 %1$d 張。點縮圖選取，長按可編輯（裁切／旋轉）。</string>
     <string name="select_all">全選</string>
     <string name="select_none">全不選</string>
     <string name="save_n">儲存 %1$d 張</string>
     <string name="saving">儲存中 %1$d / %2$d…</string>
     <string name="saved_n">已儲存 %1$d 張到「圖片/YTPostImage」</string>
+    <string name="saved_lowres">（%1$d 張因記憶體不足降低了解析度）</string>
     <string name="saved_partial">已儲存 %1$d 張，%2$d 張失敗</string>
     <string name="err_invalid_link">這不是有效的 YouTube 社群貼文連結。請貼上像 https://www.youtube.com/post/Ugk… 的連結。</string>
     <string name="err_clipboard_empty">剪貼簿是空的，請先複製貼文連結。</string>
@@ -23,4 +22,14 @@
     <string name="err_no_images">這則貼文沒有圖片，或 YouTube 版面已變動導致無法解析（可能需要更新 App）。</string>
     <string name="err_parse">解析貼文失敗，YouTube 版面可能已變動（可能需要更新 App）。</string>
     <string name="err_permission">沒有儲存權限，無法存圖。請在系統設定中允許「儲存空間」權限。</string>
+    <string name="cancel">取消</string>
+    <string name="done">完成</string>
+    <string name="edit_title">編輯圖片</string>
+    <string name="ratio">比例</string>
+    <string name="custom">自訂</string>
+    <string name="reset_rotation">歸零</string>
+    <string name="reset_crop">重設</string>
+    <string name="loading_original">載入原圖中…</string>
+    <string name="err_edit_load">載入原圖失敗，請返回後再試。</string>
+    <string name="badge_edited">已編輯</string>
 </resources>
