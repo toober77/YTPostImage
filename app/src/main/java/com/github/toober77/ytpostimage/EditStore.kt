@@ -2,11 +2,16 @@ package com.github.toober77.ytpostimage
 
 /** 行程內共用：每張圖的編輯狀態，以及已下載的原圖位元組（避免編輯／儲存時重複下載）。 */
 object EditStore {
+    private val images = HashMap<String, PostImage>()
     private val edits = HashMap<String, EditState>()
     private val editedThumbs = HashMap<String, android.graphics.Bitmap>()
     private val originals = object : LinkedHashMap<String, DownloadedImage>(8, 0.75f, true) {}
     private var originalBytes = 0L
     private const val MAX_CACHE = 96L * 1024 * 1024
+
+    /** 目前顯示的圖片（編輯器用 id 取回完整資訊，IG 圖片需要簽章網址）。 */
+    @Synchronized fun registerImages(list: List<PostImage>) { images.clear(); list.forEach { images[it.id] = it } }
+    @Synchronized fun image(id: String): PostImage? = images[id]
 
     @Synchronized fun getEdit(id: String): EditState? = edits[id]
     /** 設定（或清除）編輯狀態；[thumb] 是套用編輯後的縮圖預覽（用降採樣預覽圖產生）。 */
@@ -25,6 +30,7 @@ object EditStore {
     @Synchronized fun clear() {
         edits.clear()
         editedThumbs.clear()
+        images.clear()
         originals.clear()
         originalBytes = 0
     }

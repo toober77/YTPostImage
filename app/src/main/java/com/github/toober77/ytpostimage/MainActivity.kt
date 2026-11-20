@@ -48,7 +48,8 @@ class MainActivity : Activity() {
     private lateinit var saveBtn: Button
     private lateinit var bottomBar: View
 
-    private var postId: String? = null
+    /** 存檔檔名前綴：YouTube＝貼文 ID，IG＝ig_<shortcode>。 */
+    private var filePrefix: String? = null
     private var images: List<PostImage> = emptyList()
     private var selected = BooleanArray(0)
     private var cells: List<Cell> = emptyList()
@@ -317,6 +318,7 @@ class MainActivity : Activity() {
 
     private fun showImages(imgs: List<PostImage>) {
         images = imgs
+        EditStore.registerImages(imgs)
         selected = BooleanArray(imgs.size) { true }
         failedIdx = emptySet()
         rebuildCells()
@@ -325,7 +327,7 @@ class MainActivity : Activity() {
 
     /** 測試用：不經網路直接顯示一組圖片。 */
     internal fun showImagesForTest(imgs: List<PostImage>, id: String) {
-        postId = id
+        filePrefix = id
         setStatus(getString(R.string.found_n, imgs.size))
         showImages(imgs)
     }
@@ -340,7 +342,7 @@ class MainActivity : Activity() {
             val text = i.getStringExtra(Intent.EXTRA_TEXT) ?: i.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
             if (text != null) {
                 fromShare = true
-                val url = PostParser.extractUrl(text) ?: text.trim()
+                val url = LinkParser.extractUrl(text) ?: text.trim()
                 input.setText(url)
                 startFetch(text)
             }
@@ -352,8 +354,8 @@ class MainActivity : Activity() {
         if (busy) return
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
-        if (!clip.isNullOrBlank() && PostParser.postIdFromInput(clip) != null) {
-            input.setText(PostParser.extractUrl(clip) ?: clip.trim())
+        if (!clip.isNullOrBlank() && LinkParser.parse(clip) != null) {
+            input.setText(LinkParser.extractUrl(clip) ?: clip.trim())
             input.setSelection(input.text.length)
             startFetch(clip)
             return
@@ -372,30 +374,52 @@ class MainActivity : Activity() {
 
     private fun startFetch(raw: String) {
         if (busy) return
-        val id = PostParser.postIdFromInput(raw)
-        if (id == null) {
+        val link = LinkParser.parse(raw)
+        if (link == null) {
             setStatus(getString(R.string.err_invalid_link), true)
             return
         }
-        input.setText(PostParser.canonicalUrl(id))
-        postId = id
+        input.setText(link.canonicalUrl)
+        filePrefix = link.filePrefix
         EditStore.clear()
         showImages(emptyList())
         setBusy(true)
-        setStatus(getString(R.string.fetching))
+        setStatus(getString(if (link is Link.Instagram) R.string.fetching_ig else R.string.fetching))
         io.execute {
+            // Pair<成功結果, 訊息>；成功時訊息（可為 null）附加在「找到 N 張」後面
+            var note: String? = null
             val result: Pair<List<PostImage>?, String?> = try {
-                val html = YouTubeClient.fetchHtml(PostParser.canonicalUrl(id))
-                val imgs = PostParser.parseImages(html, id)
-                if (imgs.isEmpty()) null to getString(R.string.err_no_images) else imgs to null
+                when (link) {
+                    is Link.YouTube -> {
+                        val html = YouTubeClient.fetchHtml(link.canonicalUrl)
+                        val imgs = PostParser.parseImages(html, link.postId)
+                        if (imgs.isEmpty()) null to getString(R.string.err_no_images) else imgs to null
+                    }
+                    is Link.Instagram -> {
+                        val html = YouTubeClient.fetchInstagramEmbed(link.link)
+                        val r = InstagramParser.parse(html, link.link)
+                        when {
+                            r.images.isNotEmpty() -> {
+                                if (r.skippedVideos > 0) note = getString(R.string.ig_skipped_videos, r.skippedVideos)
+                                r.images to null
+                            }
+                            r.isVideoPost || r.skippedVideos > 0 -> null to getString(R.string.err_ig_video)
+                            else -> null to getString(R.string.err_ig_blocked)
+                        }
+                    }
+                }
             } catch (e: ConsentException) {
                 null to getString(R.string.err_consent)
             } catch (e: HttpStatusException) {
-                null to if (e.code == 404 || e.code == 410) getString(R.string.err_not_found) else getString(R.string.err_http, e.code)
+                when {
+                    link is Link.Instagram -> null to getString(R.string.err_ig_blocked)
+                    e.code == 404 || e.code == 410 -> null to getString(R.string.err_not_found)
+                    else -> null to getString(R.string.err_http, e.code)
+                }
             } catch (e: IOException) {
                 null to getString(R.string.err_network)
             } catch (e: Exception) {
-                null to getString(R.string.err_parse)
+                null to getString(if (link is Link.Instagram) R.string.err_ig_blocked else R.string.err_parse)
             }
             ui.post {
                 if (isDestroyed) return@post
@@ -404,7 +428,7 @@ class MainActivity : Activity() {
                 if (imgs == null) {
                     setStatus(result.second ?: "", true)
                 } else {
-                    setStatus(getString(R.string.found_n, imgs.size))
+                    setStatus(getString(R.string.found_n, imgs.size) + (note ?: ""))
                     showImages(imgs)
                 }
             }
@@ -446,7 +470,7 @@ class MainActivity : Activity() {
     )
 
     private fun doSave() {
-        val id = postId ?: return
+        val id = filePrefix ?: return
         val picks = images.indices.filter { selected[it] }
         if (picks.isEmpty()) return
         setBusy(true)

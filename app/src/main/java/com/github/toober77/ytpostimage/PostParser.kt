@@ -1,13 +1,16 @@
 package com.github.toober77.ytpostimage
 
-/** 貼文中的一張圖片。[id] 是圖片 ID（yt3 網址 `=` 之前那一段），[host] 是圖床主機名稱。 */
-data class PostImage(val id: String, val host: String) {
+/**
+ * 貼文中的一張圖片。YouTube：[id] 是圖片 ID（yt3 網址 `=` 之前那一段），[host] 是圖床主機名稱，網址由 id 組出；
+ * Instagram：[fullUrl] 直接給原尺寸網址（簽章網址，會過期），[thumb] 為較小的縮圖變體（可為 null）。
+ */
+data class PostImage(val id: String, val host: String, val fullUrl: String? = null, val thumb: String? = null) {
     /** 縮圖網址（用於預覽格狀清單）。 */
-    val thumbUrl: String get() = "https://$host/$id=s1080"
+    val thumbUrl: String get() = thumb ?: fullUrl ?: "https://$host/$id=s1080"
     /** 原尺寸（未裁切）網址，優先使用。 */
-    val originalUrl: String get() = PostParser.withSuffix(this, "d")
-    /** 備用的原尺寸網址（`=d` 失敗時使用）。 */
-    val fallbackUrl: String get() = PostParser.withSuffix(this, "s0")
+    val originalUrl: String get() = fullUrl ?: PostParser.withSuffix(this, "d")
+    /** 備用的原尺寸網址（`=d` 失敗時使用；IG 沒有備用）。 */
+    val fallbackUrl: String get() = fullUrl ?: PostParser.withSuffix(this, "s0")
 }
 
 /**

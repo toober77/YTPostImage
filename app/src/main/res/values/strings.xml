@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">YTPostImage</string>
-    <string name="input_hint">貼上 YouTube 社群貼文連結</string>
+    <string name="input_hint">貼上 YouTube 社群貼文或 IG 貼文連結</string>
     <string name="paste_and_fetch">貼上並抓圖</string>
-    <string name="hint_idle">複製連結後按左側按鈕，或從 YouTube 分享過來。</string>
+    <string name="hint_idle">複製連結後按右側按鈕，或從 YouTube／Instagram 分享過來（IG 為實驗性）。</string>
     <string name="fetching">正在讀取貼文…</string>
     <string name="found_n">找到 %1$d 張。點圖選取，點右下角鉛筆可裁切／旋轉。</string>
     <string name="select_all">全選</string>
@@ -40,4 +40,8 @@
     <string name="loading_original">載入原圖中…</string>
     <string name="err_edit_load">載入原圖失敗，請返回後再試。</string>
     <string name="badge_edited">已編輯</string>
+    <string name="fetching_ig">正在讀取 IG 貼文…（實驗性）</string>
+    <string name="ig_skipped_videos">（已略過 %1$d 個影片）</string>
+    <string name="err_ig_blocked">IG 擋下來了，或這篇是私人／已刪除貼文（IG 功能為實驗性）。</string>
+    <string name="err_ig_video">這是 Reels／影片貼文，IG 只提供封面，無法下載影片，所以不支援（IG 功能為實驗性）。</string>
 </resources>

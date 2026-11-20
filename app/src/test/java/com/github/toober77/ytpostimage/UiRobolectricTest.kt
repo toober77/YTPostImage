@@ -348,20 +348,25 @@ class UiRobolectricTest {
         org.junit.Assume.assumeTrue(!pids.isNullOrEmpty())
         pids!!.forEachIndexed { n, pid ->
             EditStore.clear()
-            val imgs = PostParser.parseImages(YouTubeClient.fetchHtml(PostParser.canonicalUrl(pid)), pid)
+            val link = LinkParser.parse(pid)!!
+            val imgs = when (link) {
+                is Link.YouTube -> PostParser.parseImages(YouTubeClient.fetchHtml(link.canonicalUrl), link.postId)
+                is Link.Instagram -> InstagramParser.parse(YouTubeClient.fetchInstagramEmbed(link.link), link.link).images
+            }
             val ctrl = Robolectric.buildActivity(MainActivity::class.java).setup()
             val a = ctrl.get()
-            a.showImagesForTest(imgs, pid)
+            a.showImagesForTest(imgs, link.filePrefix)
             repeat(160) { shadowOf(android.os.Looper.getMainLooper()).idle(); Thread.sleep(50) }
             shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
             println("LIVE $pid images=${imgs.size} aspects=" + imgs.indices.joinToString { "%.2f".format(a.cellAspectForTest(it)) })
-            shot(a.window.decorView, "live_main_${n + 1}.png")
+            shot(a.window.decorView, "${if (link is Link.Instagram) "ig" else "yt"}_main_${n + 1}.png")
             // 編輯第 2 張（9:16 + 順時針 90° + 微調 -3°），回主畫面截圖
             val target = imgs[minOf(1, imgs.size - 1)]
             val intent = Intent(RuntimeEnvironment.getApplication(), EditActivity::class.java)
                 .putExtra(EditActivity.EXTRA_ID, target.id).putExtra(EditActivity.EXTRA_HOST, target.host)
             val ed = Robolectric.buildActivity(EditActivity::class.java, intent).setup()
             waitLoaded(ed)
+            assertNotNull("editor loaded original", EditStore.image(target.id))
             val e = ed.get()
             btn(e, "9:16").performClick()
             val seek = allViews(e.window.decorView).filterIsInstance<SeekBar>().first()
@@ -373,7 +378,7 @@ class UiRobolectricTest {
             btn(e, "完成").performClick()
             ctrl.pause().resume()
             shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
-            shot(a.window.decorView, "live_main_${n + 1}_edited.png")
+            shot(a.window.decorView, "${if (link is Link.Instagram) "ig" else "yt"}_main_${n + 1}_edited.png")
         }
     }
 
@@ -461,5 +466,38 @@ class UiRobolectricTest {
         assertEquals(3, FakeMedia.saved.size)
         assertEquals("${pid}_2.jpg", FakeMedia.saved.last().first)
         assertTrue("auto close after full success", a.isFinishing)
+    }
+
+    @Test fun instagramImagesSaveWithIgFilenames() {
+        FakeMedia.saved.clear(); FakeMedia.failInsert = false; FakeMedia.failNames.clear()
+        Robolectric.setupContentProvider(FakeMedia::class.java, "media")
+        val link = LinkParser.parse("https://www.instagram.com/natgeo/p/DA4eKVWJTTT/?igsh=x") as Link.Instagram
+        val imgs = listOf("ig_1", "ig_2").map { PostImage(it, "x.cdninstagram.com", "https://x.cdninstagram.com/v/$it.jpg?sig=1", "https://x.cdninstagram.com/v/${it}_t.jpg") }
+        imgs.forEach { EditStore.seedOriginal(it.id, DownloadedImage(jpeg(synthetic(300, 400)), "image/jpeg", "x")) }
+        val a = Robolectric.buildActivity(MainActivity::class.java).setup().get()
+        imgs.forEach { a.seedThumb(it, synthetic(300, 400)) }
+        a.showImagesForTest(imgs, link.filePrefix)
+        // 編輯第 1 張（不經網路：原圖已在快取）→ 走「編輯後儲存」；第 2 張也設編輯，避免網路下載
+        imgs.forEach { EditStore.setEdit(it.id, EditState(300, 400, 1, 0.0, CropRect(0.0, 0.0, 400.0, 300.0))) }
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        shot(a.window.decorView, "ig_main_synthetic.png")
+        allButtons(a.window.decorView).first { it.text.toString().startsWith("儲存") }.performClick()
+        repeat(100) { shadowOf(android.os.Looper.getMainLooper()).idle(); Thread.sleep(30) }
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(3))
+        assertEquals(listOf("ig_DA4eKVWJTTT_1.jpg", "ig_DA4eKVWJTTT_2.jpg"), FakeMedia.saved.map { it.first })
+        assertTrue(a.isFinishing)
+    }
+
+    @Test fun editorUsesRegisteredIgImageUrl() {
+        val img = PostImage("ig_9", "x.cdninstagram.com", "https://x.cdninstagram.com/v/ig_9.jpg?sig=1")
+        EditStore.registerImages(listOf(img))
+        EditStore.seedOriginal(img.id, DownloadedImage(jpeg(synthetic(300, 400)), "image/jpeg", "x"))
+        val intent = Intent(RuntimeEnvironment.getApplication(), EditActivity::class.java)
+            .putExtra(EditActivity.EXTRA_ID, img.id).putExtra(EditActivity.EXTRA_HOST, img.host)
+        val ctrl = Robolectric.buildActivity(EditActivity::class.java, intent).setup()
+        waitLoaded(ctrl)
+        btn(ctrl.get(), "⟳").performClick()
+        btn(ctrl.get(), "完成").performClick()
+        assertNotNull(EditStore.getEdit("ig_9"))
     }
 }

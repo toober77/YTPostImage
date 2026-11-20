@@ -30,19 +30,25 @@ object YouTubeClient {
     private const val MAX_HTML = 12 * 1024 * 1024
     private const val MAX_IMAGE = 64 * 1024 * 1024
 
+    /** IG 一律用非瀏覽器 UA（瀏覽器 UA 只會拿到空殼 JS 頁）；不偽裝成搜尋引擎爬蟲。 */
+    const val IG_USER_AGENT = "YTPostImage/1.3"
+
+    private fun isIgHost(host: String) = host.endsWith("instagram.com") || host.endsWith("cdninstagram.com") || host.endsWith("fbcdn.net")
+
     private fun open(url: String, forImage: Boolean): HttpURLConnection {
         val c = URL(url).openConnection() as HttpURLConnection
+        val ig = isIgHost(URL(url).host)
         c.instanceFollowRedirects = false
         c.connectTimeout = 15000
         c.readTimeout = 30000
-        c.setRequestProperty("User-Agent", USER_AGENT)
+        c.setRequestProperty("User-Agent", if (ig) IG_USER_AGENT else USER_AGENT)
         c.setRequestProperty("Accept-Language", ACCEPT_LANGUAGE)
         c.setRequestProperty("Accept-Encoding", "gzip")
         if (forImage) {
             c.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
         } else {
             c.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            c.setRequestProperty("Cookie", CONSENT_COOKIE)
+            if (!ig) c.setRequestProperty("Cookie", CONSENT_COOKIE)
         }
         return c
     }
@@ -90,6 +96,9 @@ object YouTubeClient {
     /** 下載一般 URL 的位元組（縮圖預覽用）。 */
     fun downloadBytes(url: String): ByteArray = get(url, true).second
 
+    /** 下載 IG 的 embed 頁（`/p/<code>/embed/captioned/`）。 */
+    fun fetchInstagramEmbed(link: IgLink): String = String(get(link.embedUrl, false).second, Charsets.UTF_8)
+
     /** 下載貼文頁 HTML。 */
     fun fetchHtml(postUrl: String): String {
         val (c, data) = get(postUrl, false)
@@ -101,7 +110,7 @@ object YouTubeClient {
     /** 下載圖片；先試 `=d`，失敗再試 `=s0`。 */
     fun downloadImage(img: PostImage): DownloadedImage {
         var last: Exception? = null
-        for (u in listOf(img.originalUrl, img.fallbackUrl)) {
+        for (u in listOf(img.originalUrl, img.fallbackUrl).distinct()) {
             try {
                 val (c, data) = get(u, true)
                 val ct = c.contentType

@@ -1,6 +1,6 @@
-# YTPostImage（YouTube 社群貼文存圖）
+# YTPostImage（YouTube 社群貼文／IG 貼文存圖）
 
-分享或貼上 YouTube 社群貼文連結，一鍵把貼文**所有圖片以原尺寸**存到相簿（Pictures/YTPostImage）。不需登入、不需 API key。
+分享或貼上 YouTube 社群貼文連結（**v1.3.0 起另有實驗性的 Instagram 貼文支援**），一鍵把貼文**所有圖片以原尺寸**存到相簿（Pictures/YTPostImage）。不需登入、不需 API key。
 
 ## 需求
 - Android 9（API 28）以上
@@ -32,6 +32,19 @@
 - `https://m.youtube.com/post/<貼文ID>`、`https://youtu.be/post/<貼文ID>`
 - `https://www.youtube.com/channel/<頻道ID>/community?lb=<貼文ID>`、`https://www.youtube.com/@handle/community?lb=<貼文ID>`
 - 直接貼貼文 ID（`Ugk…`）
+
+## Instagram 貼文（實驗性）
+
+v1.3.0 起可貼上或從 Instagram 分享 IG 貼文連結，App 會**自動判斷是 YouTube 還是 IG**，後續縮圖、編輯、儲存、重試、自動關閉都和 YouTube 完全相同。
+
+- 支援的連結：`instagram.com/p/<代碼>`、`/reel/<代碼>`、`/tv/<代碼>`、`/<使用者>/p/<代碼>/`，含或不含 `www.`、`m.`，後面的 `?igsh=…` 等參數會自動忽略。
+- 檔名：`ig_<代碼>_<序號>.<副檔名>`（YouTube 仍是 `<貼文ID>_<序號>.<副檔名>`），同樣存到「圖片/YTPostImage」。
+- 輪播貼文（多張）會抓到全部照片，通常是 1440 寬（最大約 2160×2700）的原尺寸；**輪播中的影片會被略過**，並在訊息中標示略過幾個。
+- **Reels／純影片貼文不支援**：IG 只提供封面，會顯示說明訊息而不下載。
+- 私人、已刪除或被 IG 擋下的貼文會顯示「IG 擋下來了，或這篇是私人／已刪除貼文（IG 功能為實驗性）」。
+- 運作方式：讀取公開的 `https://www.instagram.com/p/<代碼>/embed/captioned/` 頁面（User-Agent 為 `YTPostImage/1.3`，不偽裝成瀏覽器或搜尋引擎），輪播從頁面內的 `contextJSON` 取出每張圖的原尺寸網址，單張照片讀 `<img class="EmbeddedMediaImage">`。
+- ⚠️ IG 的圖片網址是**帶簽章、幾天內過期**的，所以抓完請立刻儲存（過期後重新按「貼上並抓圖」即可）。
+- ⚠️ 這是**實驗性**功能：IG 可能隨時改版、限流或封鎖，導致無法使用，之後可能需要更新 App。
 
 ## 編輯圖片（裁切／旋轉）
 
@@ -65,6 +78,7 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ```
 單元測試（`app/src/test`）：
 - `PostParserTest`：網址正規化、用兩份真實貼文 HTML 快照（單張、多張）測圖片擷取、尺寸後綴改寫。
+- `InstagramParserTest`：IG 連結格式、平台判斷、用 4 份真實 embed 頁快照（橫向輪播、直向輪播、單張照片、Reels）測解析，另有合成資料測影片投影片略過與各種跳脫格式。
 - `EditMathTest`：裁切框／旋轉／比例解析等純數學。
 - `SaveErrorsTest`：儲存失敗原因分類。
 - `UiRobolectricTest`：用 Robolectric（NATIVE 繪圖，無頭環境）檢查主畫面（縮圖保持比例、鉛筆按鈕、點選切換）、編輯後縮圖、編輯器、旋轉＋裁切的實際像素結果、儲存後自動關閉／部分失敗後重試；截圖輸出到 `app/build/screens/`。
@@ -86,6 +100,7 @@ keyPassword=...
 沒有簽章設定時 release APK 會是未簽章版本。keystore 請勿提交到 repo。
 
 ## 版本
+- **v1.3.0**：新增實驗性 Instagram 貼文支援（`/p/`、`/reel/`、`/tv/`，自動判斷平台，檔名 `ig_<代碼>_<序號>`）；輸入框提示改為「YouTube 社群貼文或 IG 貼文」。YouTube 行為與介面不變。
 - **v1.2.0**：縮圖改為兩欄瀑布流並保持原圖比例（`=s1080` 更清楚）；編輯完成後縮圖直接顯示編輯結果；「貼上並抓圖」移到右上；每張縮圖右下角加鉛筆編輯鈕（取消長按）；儲存部分失敗時自動取消已成功的勾選、按鈕變「重試失敗的 N 張」，錯誤訊息改為中文原因。
 - **v1.1.0**：永遠深色主題；「貼上」與「抓圖」合併為一個按鈕、提示放右側、版面更緊湊（輸入框按 Enter 也會抓圖）；全部儲存成功後自動關閉；長按縮圖進入裁切（9:16／2:3／自訂比例）與旋轉（±90°、微調、歸零）編輯，儲存編輯後的原解析度版本。
 - **v1.0.0**：第一版。分享／貼上連結、縮圖格選取、原尺寸存圖。

@@ -51,7 +51,8 @@ class EditActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        img = PostImage(intent.getStringExtra(EXTRA_ID) ?: run { finish(); return }, intent.getStringExtra(EXTRA_HOST) ?: "yt3.ggpht.com")
+        val iid = intent.getStringExtra(EXTRA_ID) ?: run { finish(); return }
+        img = EditStore.image(iid) ?: PostImage(iid, intent.getStringExtra(EXTRA_HOST) ?: "yt3.ggpht.com")
         buildUi()
         val prev = EditStore.getEdit(img.id)
         if (prev != null) {

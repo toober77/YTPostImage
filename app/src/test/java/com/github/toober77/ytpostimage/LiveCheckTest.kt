@@ -12,14 +12,25 @@ class LiveCheckTest {
         val ids = System.getenv("YTPOST_LIVE")
         assumeTrue(!ids.isNullOrBlank())
         for (raw in ids!!.split(',')) {
-            val url = PostParser.normalize(raw.trim()) ?: error("bad id $raw")
-            val html = YouTubeClient.fetchHtml(url)
-            val imgs = PostParser.parseImages(html, PostParser.postIdFromInput(url))
-            println("LIVE $url -> ${imgs.size} images")
+            val link = LinkParser.parse(raw.trim()) ?: error("bad link $raw")
+            val imgs: List<PostImage>
+            when (link) {
+                is Link.YouTube -> imgs = PostParser.parseImages(YouTubeClient.fetchHtml(link.canonicalUrl), link.postId)
+                is Link.Instagram -> {
+                    val r = InstagramParser.parse(YouTubeClient.fetchInstagramEmbed(link.link), link.link)
+                    println("LIVE IG skippedVideos=${r.skippedVideos} isVideoPost=${r.isVideoPost}")
+                    imgs = r.images
+                }
+            }
+            println("LIVE ${link.canonicalUrl} -> ${imgs.size} images")
             for ((i, img) in imgs.withIndex()) {
                 val d = YouTubeClient.downloadImage(img)
                 val dim = dimensions(d.bytes)?.let { "${it.first}x${it.second}" } ?: "?"
-                println("LIVE   #${i + 1} ${img.id.take(12)}… ${d.url.substringAfterLast('=', "")} ${d.contentType} ${d.bytes.size}B $dim -> ${ImageSaver.fileName(PostParser.postIdFromInput(url)!!, i + 1, d.extension)}")
+                val th = if (link is Link.Instagram && img.thumb != null) {
+                    val tb = YouTubeClient.downloadBytes(img.thumbUrl)
+                    " thumb=" + (dimensions(tb)?.let { "${it.first}x${it.second}" } ?: "?")
+                } else ""
+                println("LIVE   #${i + 1} ${img.id.take(14)}… ${d.contentType} ${d.bytes.size}B $dim$th -> ${ImageSaver.fileName(link.filePrefix, i + 1, d.extension)}")
             }
         }
     }
